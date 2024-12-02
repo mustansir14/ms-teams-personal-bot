@@ -16,6 +16,20 @@ class TeamsClient:
         self.search_token = search_token
         self.message_token = message_token
         self.skype_token = skype_token
+        self.proxies = [
+            "fxycvemr:4j1n5r6hodwo@198.23.239.134:6540",
+            "fxycvemr:4j1n5r6hodwo@207.244.217.165:6712",
+            "fxycvemr:4j1n5r6hodwo@107.172.163.27:6543",
+            "fxycvemr:4j1n5r6hodwo@64.137.42.112:5157",
+            "fxycvemr:4j1n5r6hodwo@173.211.0.148:6641",
+            "fxycvemr:4j1n5r6hodwo@161.123.152.115:6360",
+            "fxycvemr:4j1n5r6hodwo@167.160.180.203:6754",
+            "fxycvemr:4j1n5r6hodwo@154.36.110.199:6853",
+            "fxycvemr:4j1n5r6hodwo@173.0.9.70:5653",
+            "fxycvemr:4j1n5r6hodwo@173.0.9.209:5792"
+        ]
+        self.proxy_index = 0
+        self.proxy = None
 
 
     def get_user_by_email(self, email: str) -> Dict:
@@ -79,7 +93,7 @@ class TeamsClient:
         response = self.send_request("POST", url, headers, payload)
 
         if response.status_code != 200:
-            raise UnknownAPIException(f"error {response.status_code} fetching user from api: " + response.text)
+            raise UnknownAPIException(f"error {response.status_code} creating chat: " + response.text)
         
         response_json = response.json()
         return response_json["value"]["threadId"]
@@ -137,11 +151,35 @@ class TeamsClient:
         if response.status_code != 201:
             raise UnknownAPIException(f"error {response.status_code} sending message: {response.text}")
 
-    def send_request(self, method: str, url: str, headers: Dict, payload: Dict) -> requests.Response:
+    def send_request(self, method: str, url: str, headers: Dict, payload: Dict, retry_no: int = 0) -> requests.Response:
         try:
-            return requests.request(method, url, headers=headers, data=payload)
+            res = requests.request(method, url, headers=headers, data=payload, proxies=self.proxy)
+            if res.status_code == 429:
+                if retry_no >= len(self.proxies):
+                    print("Too many retries...")
+                    return res
+                print("Too many requests error. Rotating proxy and retrying...")
+                self.switch_proxy()
+                return self.send_request(method, url, headers, payload, retry_no + 1)
+            return res
         except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
             print("Connection error. Retrying request in 5 seconds...")
             time.sleep(5)
             return self.send_request(method, url, headers, payload)
+        
+    
+    def switch_proxy(self) -> None:
+        if self.proxy_index == len(self.proxies):
+            self.proxy = None
+            self.proxy_index = 0
+            return
+        
+        self.proxy = {
+            "http": "http://" + self.proxies[self.proxy_index],
+            "https": "http://" + self.proxies[self.proxy_index]
+        }
+
+        self.proxy_index = (self.proxy_index + 1) % (len(self.proxies) + 1)
+
+        
     

@@ -3,7 +3,7 @@ import pandas as pd
 
 from internal.env import Env
 from internal.teams_client import TeamsClient
-from internal.exceptions import UnknownAPIException, ResourceNotFoundException
+from internal.exceptions import ResourceNotFoundException
 
 from colorama import Fore
 from datetime import datetime
